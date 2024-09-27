@@ -306,14 +306,73 @@ function identity<T>(arg: T): T {
     return arg;
 }
 let myIdentity: {<T>(arg: T): T} = identity;
+//对象字面量型的泛型接口
+interface GenericIdentityFn {
+    <T>(arg: T): T;
+}
+
+function identity<T>(arg: T): T {
+    return arg;
+}
+
+let myIdentity: GenericIdentityFn = identity;
 ```
 >
 >
->
->**基本方式**
+>**把泛型参数当作整个接口的一个参数**
 >
 ```typescript
+interface GenericIdentityFn<T> {
+    (arg: T): T;
+}
+function identity<T>(arg: T): T {
+    return arg;
+}
+let myIdentity: GenericIdentityFn<number> = identity;
 ```
 >
 >
+>### 泛型约束
+>
+>定义一个接口来描述约束条件。 创建一个包含.length属性的接口，使用这个接口和extends关键字还实现约束：
+>
+```typescript
+interface Lengthwise {
+    length: number;
+}
+function loggingIdentity<T extends Lengthwise>(arg: T): T {
+    console.log(arg.length);  // Now we know it has a .length property, so no more error
+    return arg;
+}
+loggingIdentity(3);  // Error, number doesn't have a .length property
+loggingIdentity({length: 10, value: 3});
+```
+>
+>**泛型里面使用类类型**
+>
+>在TypeScript使用泛型创建工厂函数时，需要引用构造函数的类类型
+>
+``` typescript
+class BeeKeeper {
+    hasMask: boolean;
+}
+class ZooKeeper {
+    nametag: string;
+}
+class Animal {
+    numLegs: number;
+}
+class Bee extends Animal {
+    keeper: BeeKeeper;
+}
+class Lion extends Animal {
+    keeper: ZooKeeper;
+}
+function createInstance<A extends Animal>(c: new () => A): A {
+    return new c();
+}
 
+createInstance(Lion).keeper.nametag;  // typechecks!
+createInstance(Bee).keeper.hasMask;   // typechecks!
+```
+>
