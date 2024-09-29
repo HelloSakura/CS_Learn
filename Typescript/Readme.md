@@ -8,6 +8,12 @@
   - [类](#类)
   - [函数](#函数)
   - [泛型](#泛型)
+  - [类型推论](#类型推论)
+  - [类型兼容性](#类型兼容性)
+  - [高级类型](#高级类型)
+  - [Symbols](#symbols)
+  - [Iterators 和 Generators](#iterators-和-generators)
+  - [模块](#模块)
 -
 - 参考
   - [ref1: Typescript中文手册](https://typescript.bootcss.com/generics.html)
@@ -249,6 +255,9 @@ console.log(greeter.greet());
 >类具有实例部分与静态部分[TS静态部分和实例部分](https://juejin.cn/post/6844903881860874254)
 >
 >
+>### TS的对象结构
+>
+>
 ---
 >
 ## 函数
@@ -375,4 +384,243 @@ function createInstance<A extends Animal>(c: new () => A): A {
 createInstance(Lion).keeper.nametag;  // typechecks!
 createInstance(Bee).keeper.hasMask;   // typechecks!
 ```
+>
+---
+
+## 类型推论
+
+>
+>
+>
+
+---
+
+## 类型兼容性
+>
+>TypeScript里的类型兼容性是基于结构子类型的,基于类型的组成结构，且不要求明确地声明;
+>在基于名义类型的类型系统中，数据类型的兼容性或等价性是通过明确的声明或类型的名称来决定的(C#,java)
+>基本规则：**如果x要兼容y，那么y至少具有与x相同的属性**
+>
+>### 比较两个函数
+>
+>要查看x是否能赋值给y，首先看它们的参数列表。 x的每个参数必须能在y里找到对应类型的参数,**只看参数的类型**，允许忽略参数
+>
+```typescript
+let x = (a: number) => 0;
+let y = (b: number, s: string) => 0;
+
+y = x; // OK
+x = y; // Error
+```
+>
+>**处理返回值**:强制源函数的返回值类型必须是目标函数返回值类型的子类型
+>
+```typescript
+let x = () => ({name: 'Alice'});
+let y = () => ({name: 'Alice', location: 'Seattle'});
+
+x = y; // OK
+y = x; // Error because x() lacks a location property
+```
+>
+>简单来讲，如果x能赋值给y，那么x的返回值类型必须包含于y的返回值类型中
+>
+>### 其它比对规则
+>
+>**枚举**：枚举类型与数字类型兼容，并且数字类型与枚举类型兼容。不同枚举类型之间是不兼容的
+>**类**：类与对象字面量和接口差不多，但有一点不同：类有静态部分和实例部分的类型。 比较两个类类型的对象时，只有实例的成员会被比较。 静态成员和构造函数不在比较的范围内。私有成员会影响兼容性判断。 当类的实例用来检查兼容时，如果目标类型包含一个私有成员，那么源类型必须包含来自同一个类的这个私有成员。 这允许子类赋值给父类，但是不能赋值给其它有同样类型的类。
+>
+>
+>
+
+---
+
+## 高级类型
+
+>
+>### 交叉类型??
+>
+>交叉类型是将多个类型合并为一个类型。 这让我们可以把现有的多种类型叠加到一起成为一种类型，它包含了所需的所有类型的特性。 例如，Person & Serializable & Loggable同时是Person和Serializable和Loggable。 就是说这个类型的对象同时拥有了这三种类型的成员
+>
+>
+>### 联合类型
+>
+>联合类型表示一个值可以是几种类型之一。 我们用竖线（|）分隔每个类型，所以number | string | boolean表示一个值可以是number，string，或boolean。如果一个值是联合类型，我们只能访问此联合类型的所有类型里**共有的成员**。
+>
+>
+>### 类型保护与区分类型
+>
+>**1.使用类型断言**
+>**2.自定义类型保护**
+>
+```typescript
+function isFish(pet: Fish | Bird): pet is Fish {
+    return (<Fish>pet).swim !== undefined;
+}
+```
+>
+>**3.typeof类型保护**
+>>typeof类型保护只有两种形式能被识别：typeof v === "typename"和typeof v !== "typename"，"typename"必须是"number"，"string"，"boolean"或"symbol"。 但是TypeScript并不会阻止你与其它字符串比较，语言不会把那些表达式识别为类型保护。
+>>
+>**4.instanceof类型保护**
+>>
+>>1.此构造函数的prototype属性的类型，如果它的类型不为any的话构造签名所返回的类型的联合
+>>
+>
+```typescript
+interface Bird {
+    fly();
+    layEggs();
+}
+
+interface Fish {
+    swim();
+    layEggs();
+}
+
+function getSmallPet(): Fish | Bird {
+    // ...
+    let fish: Fish = {
+        swim: () => {},
+        layEggs: () => {}
+    }
+
+    return fish;
+}
+
+// 每一个成员访问都会报错
+if (pet.swim) { //error，只能访问联合类型中共同拥有的成员
+    pet.swim();
+}
+else if (pet.fly) {
+    pet.fly();
+}
+
+let pet = getSmallPet();
+if((<Fish>pet).swim){
+    (<Fish>pet).swim();
+} 
+else {
+    (<Bird>pet).fly();
+}
+```
+>
+>### 类型保护和类型断言
+>
+>由于可以为null的类型是通过联合类型实现，需要使用类型保护来去除null；如果编译器不能够去除null或undefined，你可以使用类型断言手动去除。 语法是添加!后缀
+>
+>### 类型别名
+>
+>类型别名不能出现在声明右侧的任何地方
+>
+```typescript
+type Name = string;
+type NameResolver = () => string;
+type NameOrResolver = Name | NameResolver;
+function getName(n: NameOrResolver): Name {
+    if (typeof n === 'string') {
+        return n;
+    }
+    else {
+        return n();
+    }
+}
+```
+>
+>
+>### 字符串字面量类型
+>
+>字符串字面量类型允许你指定字符串必须的固定值。 在实际应用中，字符串字面量类型可以与联合类型，类型保护和类型别名很好的配合。
+>
+>### 索引类型
+>
+>使用索引类型查询和索引访问操作符
+>**K extends keyof T**？？？？
+```typescript
+function pluck<T, K extends keyof T>(o: T, names: K[]): T[K][] {
+  return names.map(n => o[n]);
+}
+
+interface Person {
+    name: string;
+    age: number;
+}
+let person: Person = {
+    name: 'Jarid',
+    age: 35
+};
+let strings: string[] = pluck(person, ['name']); // ok, string[]
+```
+>
+>### 映射类型
+>
+>花里胡哨看不太懂
+>
+>
+
+---
+
+## Symbols
+
+>
+>自ECMAScript 2015起，symbol成为了一种新的原生类型，就像number和string一样;
+>symbol类型的值是通过Symbol构造函数创建的。
+>
+```typescript
+let sym1 = Symbol();
+let sym2 = Symbol("key"); // 可选的字符串key
+let sym3 = Symbol("key");
+
+sym2 === sym3; // false, symbols是唯一的
+```
+>
+>**要点**
+>
+>1. Symbols是不可改变且唯一的;
+>2. 像字符串一样，symbols也可以被用做对象属性的键;
+>3. Symbols也可以与计算出的属性名声明相结合来声明对象的属性和类成员;
+>
+>
+>
+
+---
+
+# Iterators 和 Generators
+>
+>## for..of vs. for..in 语句
+>
+>for..of和for..in均可迭代一个列表；但是用于迭代的值却不同，for..in迭代的是对象的 键 的列表，而for..of则迭代对象的键对应的值。
+>
+>
+>
+
+---
+
+## 模块
+>
+>模块在其自身的作用域里执行，而不是在全局作用域里；这意味着定义在一个模块里的变量，函数，类等等在模块外部是不可见的，除非你明确地使用export形式之一导出它们。 相反，如果想使用其它模块导出的变量，函数，类，接口等的时候，你必须要导入它们，可以使用import形式之一。
+>模块是自声明的；两个模块之间的关系是通过在文件级别上使用imports和exports建立的。
+>
+>### 导出 export
+>
+>**导出声明**：任何声明（比如变量，函数，类，类型别名或接口）都能够通过添加export关键字来导出
+>**导出语句**：对导出的部分进行重命名
+>**重新导出**：扩展其它模块，并且只导出那个模块的部分内容
+>
+>### 导入 import
+>
+>**基本导入**：导入一个模块中的某个导出内容, 可对导入内容重命名
+>
+```typescript
+import { ZipCodeValidator as ZCV } from "./ZipCodeValidator";
+let myValidator = new ZCV();
+```
+>
+>将整个模块导入到一个变量，并通过它来访问模块的导出部分
+>
+>### 默认导出
+>
+>每个模块都可以有一个default导出。 默认导出使用default关键字标记；并且一个模块只能够有一个default导出。 需要使用一种特殊的导入形式来导入default导出
+>default导出十分便利。 比如，像JQuery这样的类库可能有一个默认导出jQuery或\$，并且我们基本上也会使用同样的名字jQuery或$导出JQuery。
+>类和函数声明可以直接被标记为默认导出。 标记为默认导出的类和函数的名字是可以省略的。
 >
